@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Agent Research Lab — Benchmark Report</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d2e; --surface2: #252840;
+    --border: #2e3250; --accent: #6c8ef7; --accent2: #56d6a0;
+    --text: #e2e4f0; --muted: #6b7280; --danger: #f87171;
+    --quality: #fbbf24; --radius: 8px; --font: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.6; }
+  a { color: var(--accent); }
+  h1 { font-size: 1.8rem; font-weight: 700; }
+  h2 { font-size: 1.3rem; font-weight: 600; color: var(--accent); }
+  h3 { font-size: 1.05rem; font-weight: 600; margin: 0.8em 0 0.3em; }
+  p  { margin: 0.5em 0; }
+  ul { padding-left: 1.4em; margin: 0.4em 0; }
+  li { margin: 0.2em 0; }
+  cite.cite { background: #2a3a5c; color: #93c5fd; padding: 0 4px; border-radius: 3px; font-style: normal; font-size: 0.85em; }
+
+  /* Layout */
+  .page-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 24px 32px; }
+  .page-header p { color: var(--muted); margin-top: 4px; font-size: 0.9rem; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 32px; }
+
+  /* Summary table */
+  .summary-table { width: 100%; border-collapse: collapse; margin: 16px 0 32px; }
+  .summary-table th { background: var(--surface2); padding: 10px 14px; text-align: left; font-weight: 600; font-size: 0.85rem; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .summary-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  .summary-table tr:hover td { background: var(--surface2); }
+
+  /* Run cards */
+  .run-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 28px; overflow: hidden; }
+  .run-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 18px 24px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .run-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+  .badge { background: #1e2235; border: 1px solid var(--border); padding: 3px 10px; border-radius: 99px; font-size: 0.82rem; color: var(--muted); }
+  .badge.quality { color: var(--quality); border-color: var(--quality); }
+
+  .query-box { padding: 12px 24px; background: #141725; font-size: 0.9rem; color: var(--muted); border-bottom: 1px solid var(--border); }
+
+  .section-label { padding: 10px 24px; background: var(--surface2); border-top: 1px solid var(--border); font-size: 0.82rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .toggle-section { cursor: pointer; user-select: none; }
+  .toggle-section:hover { color: var(--text); }
+
+  .collapsible { overflow: hidden; max-height: 0; transition: max-height 0.3s ease; }
+  .collapsible.open { max-height: 9999px; }
+
+  .answer-box { padding: 20px 24px; }
+  .route-history { padding: 10px 24px; font-family: monospace; font-size: 0.9rem; color: var(--accent2); }
+
+  .error-box { margin: 12px 24px; padding: 12px 16px; border: 1px solid var(--danger); border-radius: var(--radius); background: #2a1010; color: var(--danger); font-size: 0.88rem; }
+
+  /* Tabs */
+  .tab-bar { display: flex; gap: 4px; padding: 12px 24px 0; flex-wrap: wrap; }
+  .tab-btn { background: var(--surface2); border: 1px solid var(--border); border-bottom: none; padding: 6px 14px; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 0.82rem; color: var(--muted); transition: all 0.15s; }
+  .tab-btn.active, .tab-btn:hover { background: var(--bg); color: var(--text); }
+  .tab-content { padding: 16px 24px 20px; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Sources */
+  .source-card { border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin: 8px 24px; background: var(--surface2); }
+  .source-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
+  .source-url { font-size: 0.8rem; margin-bottom: 6px; }
+  .source-snippet { font-size: 0.85rem; color: var(--muted); }
+
+  /* Trace */
+  .trace-event { border-bottom: 1px solid var(--border); }
+  .trace-header { display: flex; align-items: center; gap: 10px; padding: 10px 24px; cursor: pointer; }
+  .trace-header:hover { background: var(--surface2); }
+  .trace-num { color: var(--muted); font-size: 0.8rem; width: 28px; }
+  .trace-name { font-family: monospace; font-size: 0.9rem; color: var(--accent); flex: 1; }
+  .trace-toggle { color: var(--muted); font-size: 0.8rem; }
+  .trace-body { padding: 8px 24px 12px 62px; font-size: 0.82rem; color: var(--accent2); white-space: pre-wrap; }
+  .trace-body-wrap { display: none; }
+  .trace-icon { font-size: 0.9rem; }
+  .prompt-block { padding: 8px 24px 12px 62px; }
+  .prompt-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 8px 0 4px; }
+  .prompt-pre { background: #0d0f1a; border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-size: 0.8rem; color: #a5b4fc; white-space: pre-wrap; overflow-x: auto; max-height: 280px; overflow-y: auto; }
+
+  .muted { color: var(--muted); }
+  strong { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Multi-Agent Research Lab — Benchmark Report</h1>
+  <p>Generated: 2026-06-24 12:16:57 &nbsp;|&nbsp; Model: Ollama (local) &nbsp;|&nbsp; Search: Mock</p>
+</div>
+
+<div class="container">
+
+  <h2 style="margin-bottom:12px">Summary</h2>
+  <table class="summary-table">
+    <thead>
+      <tr><th>Run</th><th>Latency (s)</th><th>Quality /10</th><th>Cost (USD)</th><th>Citations</th><th>Coverage</th></tr>
+    </thead>
+    <tbody id="summary-body"></tbody>
+  </table>
+
+  
+<section class="run-card" id="run-Baseline-(Single-Agent)">
+  <div class="run-header">
+    <h2>Baseline (Single-Agent)</h2>
+    <div class="run-meta">
+      <span class="badge">&#128337; 38.6s</span>
+      <span class="badge quality">&#11088; 9.0/10</span>
+      <span class="badge">&#128176; $0 (local)</span>
+      <span class="badge muted">citations=0 coverage=0%</span>
+    </div>
+  </div>
+
+  <div class="query-box">
+    <strong>Query:</strong> Do multi-agent LLM systems actually outperform single-agent systems on complex tasks? Produce a structured research briefing covering: main claim, literature positions, evidence for and against, methodological concerns, 3 proposed experiments, and a balanced final judgment.
+  </div>
+
+  
+
+  <!-- Route history -->
+  <div class="section-label">Route History</div>
+  <div class="route-history">—</div>
+
+  <!-- Final answer -->
+  <div class="section-label toggle-section" onclick="toggleSection(this, 'answer-Baseline (Single-Agent)')">
+    Final Answer &#9660;
+  </div>
+  <div id="answer-Baseline (Single-Agent)" class="collapsible open answer-box">
+    <p><strong>Research Briefing: Do Multi-Agent LLM Systems Outperform Single-Agent Systems on Complex Tasks?</strong></p><p>---</p><p><strong>Main Claim</strong>  <br>Multi-agent Large Language Model (LLM) systems—where multiple AI agents collaborate to solve a task—claim to outperform single-agent systems on complex, multi-step tasks by leveraging division of labor, redundancy, and peer validation. Proponents argue that such systems improve accuracy, robustness, and adaptability through distributed reasoning.</p><p>---</p><p><strong>Literature Positions</strong>  </p><p><ul><li><strong>Proponents (e.g., Google DeepMind, Stanford AI Lab)</strong>:  </li><br></ul>   - Argue that multi-agent systems enable better problem decomposition, error correction, and emergent coordination.  <br>   - Cite success in simulated environments (e.g., game-based reasoning, logistics planning) where agents specialize (e.g., one handles data retrieval, another generates solutions).  </p><p><ul><li><strong>Skeptics (e.g., MIT, University of Toronto)</strong>:  </li><br></ul>   - Emphasize that performance gains are often marginal or task-specific.  <br>   - Point to high computational overhead, coordination failures, and lack of true &quot;collaboration&quot; in current implementations.  </p><p><ul><li><strong>Neutral Observers (e.g., Hugging Face, arXiv reviews)</strong>:  </li><br></ul>   - Note that most multi-agent systems are still experimental and lack rigorous benchmarks.  <br>   - Highlight that performance depends heavily on agent design, communication protocols, and task structure.</p><p>---</p><p><strong>Evidence For</strong>  <br><ul><li>In controlled environments (e.g., complex math problem solving), multi-agent systems show improved accuracy due to cross-validation and specialization (e.g., *Zhang et al., 2023*).  </li><br><li>In dynamic environments (e.g., autonomous negotiation), agents outperform single agents in adaptability and resilience (e.g., *Liu et al., 2024*).  </li><br><li>Some studies show reduced error rates through peer review mechanisms (e.g., one agent critiques another’s output).</li><br></ul><br><strong>Evidence Against</strong>  <br><ul><li>Performance gains are often negligible or not statistically significant in real-world tasks (e.g., customer service, legal analysis).  </li><br><li>Multi-agent systems frequently suffer from communication bottlenecks, redundant work, or deadlock.  </li><br><li>Single-agent systems with strong fine-tuning or reasoning chains (e.g., Chain-of-Thought) often match or exceed multi-agent performance on well-defined tasks.</li><br></ul><br>---</p><p><strong>Methodological Concerns</strong>  <br><ul><li><strong>Task Selection Bias</strong>: Most studies use artificial or simplified tasks (e.g., logic puzzles), not real-world complexity.  </li><br><li><strong>Overfitting to Simulation</strong>: Performance in simulated environments does not generalize to unstructured, noisy real-world tasks.  </li><br><li><strong>Lack of Baseline Comparisons</strong>: Many studies fail to compare against optimized single-agent models with equivalent reasoning capabilities.  </li><br><li><strong>Evaluation Metrics</strong>: Metrics often focus on final output, ignoring process efficiency, reliability, or human-like reasoning.</li><br></ul><br>---</p><p><strong>Proposed Experiments</strong>  </p><p><ul><li><strong>Real-World Task Benchmarking</strong>:  </li><br></ul>   - Task: Legal document review (e.g., contract analysis).  <br>   - Compare multi-agent (specialized agents for clause parsing, risk assessment) vs. single-agent (fine-tuned LLM) across 100 real contracts.  <br>   - Metrics: Accuracy, time, human evaluator scores.  </p><p><ul><li><strong>Dynamic Environment Simulation</strong>:  </li><br></ul>   - Task: Autonomous negotiation in a supply chain.  <br>   - Track agent coordination, convergence speed, and decision quality over time.  </p><p><ul><li><strong>Controlled Reasoning Chain Comparison</strong>:  </li><br></ul>   - Use identical reasoning chains in single-agent vs. multi-agent setups.  <br>   - Measure consistency, error detection, and output quality under stress.</p><p>---</p><p><strong>Balanced Final Judgment</strong>  <br>While multi-agent LLM systems show *promise* in specific, structured domains—particularly where task decomposition and peer validation are critical—they do <strong>not currently outperform well-designed single-agent systems</strong> on most complex, real-world tasks. The performance gains are often marginal, and the systems face significant scalability, coordination, and efficiency challenges.  </p><p><strong>Conclusion</strong>: Multi-agent systems are a promising research direction, but they are not yet superior in general-purpose complex task solving. Future success depends on better agent design, communication protocols, and rigorous, ecologically valid benchmarking. Until then, single-agent systems with advanced reasoning remain more practical and effective for most applications.</p>
+  </div>
+
+  <!-- Per-agent outputs -->
+  <div class="section-label toggle-section" onclick="toggleSection(this, 'agents-Baseline (Single-Agent)')">
+    Per-Agent Outputs &#9660;
+  </div>
+  <div id="agents-Baseline (Single-Agent)" class="collapsible open">
+    <p class='muted'>No agent results.</p>
+  </div>
+
+  <!-- Sources -->
+  <div class="section-label toggle-section" onclick="toggleSection(this, 'sources-Baseline (Single-Agent)')">
+    Sources (0) &#9660;
+  </div>
+  <div id="sources-Baseline (Single-Agent)" class="collapsible">
+    <p class='muted'>No sources retrieved.</p>
+  </div>
+
+  <!-- Step trace -->
+  <div class="section-label toggle-section" onclick="toggleSection(this, 'trace-Baseline (Single-Agent)')">
+    Step Trace (2 events) &#9660;
+  </div>
+  <div id="trace-Baseline (Single-Agent)" class="collapsible">
+    
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#1</span>
+            <span class="trace-icon">&#128313;</span>
+            <span class="trace-name">baseline_prompt</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap"><pre class="trace-body">{
+  &quot;system_prompt&quot;: &quot;You are a research assistant. Given a query, write a structured, thorough answer using headings and numbered lists where appropriate. Target ~500 words.&quot;,
+  &quot;user_prompt_preview&quot;: &quot;Do multi-agent LLM systems actually outperform single-agent systems on complex tasks? Produce a structured research briefing covering: main claim, literature positions, evidence for and against, methodological concerns, 3 proposed experiments, and a balanced final judgment.&quot;
+}</pre></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#2</span>
+            <span class="trace-icon">&#128313;</span>
+            <span class="trace-name">baseline_done</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap"><pre class="trace-body">{
+  &quot;input_tokens&quot;: 93,
+  &quot;output_tokens&quot;: 894,
+  &quot;cost_usd&quot;: 0.0
+}</pre></div>
+        </div>
+  </div>
+</section>
+
+
+<section class="run-card" id="run-Multi-Agent-(Supervisor--&gt;-Researcher--&gt;-Analyst--&gt;-Writer)">
+  <div class="run-header">
+    <h2>Multi-Agent (Supervisor -&gt; Researcher -&gt; Analyst -&gt; Writer)</h2>
+    <div class="run-meta">
+      <span class="badge">&#128337; 153.1s</span>
+      <span class="badge quality">&#11088; 8.0/10</span>
+      <span class="badge">&#128176; $0 (local)</span>
+      <span class="badge muted">citations=9 coverage=24%</span>
+    </div>
+  </div>
+
+  <div class="query-box">
+    <strong>Query:</strong> Do multi-agent LLM systems actually outperform single-agent systems on complex tasks? Produce a structured research briefing covering: main claim, literature positions, evidence for and against, methodological concerns, 3 proposed experiments, and a balanced final judgment.
+  </div>
+
+  
+
+  <!-- Route history -->
+  <div class="section-label">Route History</div>
+  <div class="route-history">researcher → analyst → writer → writer → done</div>
+
+  <!-- Final answer -->
+  <div class="section-label toggle-section" onclick="toggleSection(this, 'answer-Multi-Agent (Supervisor -&gt; Researcher -&gt; Analyst -&gt; Writer)')">
+    Final Answer &#9660;
+  </div>
+  <div id="answer-Multi-Agent (Supervisor -&gt; Researcher -&gt; Analyst -&gt; Writer)" class="collapsible open answer-box">
+    <p><strong>Research Briefing: Do Multi-Agent LLM Systems Outperform Single-Agent Systems on Complex Tasks?</strong></p><p>---</p><p>### <strong>Main Claim</strong>  <br>Multi-agent LLM systems demonstrate performance advantages on complex, multi-step tasks—especially those requiring parallel subgoals or high hallucination risk—due to role specialisation and iterative refinement. However, these gains are often attributable to increased computational resources (e.g., token budget) rather than genuine coordination mechanisms. <cite class="cite">[Source 1]</cite></p><p>---</p><p>### <strong>Literature Positions</strong>  <br><ul><li><strong>Proponents</strong> (e.g., <cite class="cite">[Source 4]</cite>) argue that multi-agent systems improve task accuracy, reduce hallucinations, and enhance user satisfaction through role specialisation (e.g., intent classification, retrieval, response generation), with real-world gains such as +18% CSAT.  </li><br><li><strong>Skeptics</strong> (e.g., <cite class="cite">[Source 3]</cite>) contend that performance improvements stem from expanded token budgets and self-reflection in single agents, not coordination.  </li><br><li>A key gap exists in evaluating *usefulness* versus *fluency* of outputs, limiting claims of practical superiority. <cite class="cite">[Source 2]</cite></li><br></ul><br>---</p><p>### <strong>Evidence For</strong>  <br><ul><li>Multi-agents outperform single agents in parallel-processing tasks (e.g., customer support), reducing hallucination and accelerating resolution.  </li><br><li>Multi-agent debate improves factual accuracy by 15% on MMLU via iterative critique.  </li><br><li>Role specialisation enhances task decomposition and decision quality.</li><br></ul><br>---</p><p>### <strong>Evidence Against</strong>  <br><ul><li>Performance gains disappear when a single agent receives equivalent token budgets for self-reflection, suggesting coordination is not the driver.  </li><br><li>Multi-agents underperform when communication overhead exceeds task complexity (e.g., 1.4x latency in <cite class="cite">[Source 4]</cite>), indicating diminishing returns.  </li><br><li>No standard benchmark exists to assess whether outputs are *useful* (e.g., actionable, correct) rather than just fluent.</li><br></ul><br>---</p><p>### <strong>Methodological Concerns</strong>  <br><ul><li>Overreliance on token budget as a proxy for coordination.  </li><br><li>Lack of standardised metrics for *usefulness* in real-world tasks.  </li><br><li>Communication latency and overhead are inconsistently accounted for in performance comparisons.</li><br></ul><br>---</p><p>### <strong>Proposed Experiments</strong>  <br><ul><li><strong>Token-Budget Equivalence Test</strong>: Compare performance when multi-agent and single-agent systems receive identical token budgets to isolate coordination effects.  </li><br><li><strong>Usefulness Benchmarking</strong>: Develop task-specific metrics (correctness, feasibility, human validation) to evaluate *actionable* output quality.  </li><br><li><strong>Complexity-Overhead Trade-off Study</strong>: Measure performance vs. communication cost across varying task complexity to identify optimal agent configurations.</li><br></ul><br>---</p><p>### <strong>Balanced Final Judgment</strong>  <br>Multi-agent systems offer tangible benefits on complex, parallel, or high-hallucination tasks—particularly through role specialisation. However, these advantages are often driven by increased compute, not coordination. Without robust, standardised benchmarks for *usefulness*, claims of superior performance remain speculative. Best practice remains <strong>simple, well-guarded single-agent pipelines</strong> unless coordination enables clear, measurable value. As Anthropic notes, &quot;coordination is not a magic bullet&quot;—it must deliver demonstrable utility. <cite class="cite">[Source 5]</cite></p><p>---</p><p><strong>Further Reading</strong>  <br><ul><li><cite class="cite">[Source 3]</cite> https://arxiv.org/abs/2305.14325 – Critiques of coordination in multi-agent systems  </li><br><li><cite class="cite">[Source 4]</cite> https://arxiv.org/abs/2404.09876 – Real-world performance in customer support  </li><br><li><cite class="cite">[Source 5]</cite> https://www.anthropic.com/engineering/building-effective-agents – Practical guidelines for agent design</li></ul></p>
+  </div>
+
+  <!-- Per-agent outputs -->
+  <div class="section-label toggle-section" onclick="toggleSection(this, 'agents-Multi-Agent (Supervisor -&gt; Researcher -&gt; Analyst -&gt; Writer)')">
+    Per-Agent Outputs &#9660;
+  </div>
+  <div id="agents-Multi-Agent (Supervisor -&gt; Researcher -&gt; Analyst -&gt; Writer)" class="collapsible open">
+    <div class="tab-bar"><button class="tab-btn active" onclick="switchTab(this,'agent-0')">RESEARCHER <small>(736 tok · $0)</small></button><button class="tab-btn " onclick="switchTab(this,'agent-1')">ANALYST <small>(323 tok · $0)</small></button><button class="tab-btn " onclick="switchTab(this,'agent-2')">WRITER <small>(733 tok · $0)</small></button><button class="tab-btn " onclick="switchTab(this,'agent-3')">WRITER <small>(750 tok · $0)</small></button></div><div class="tab-content"><div id="agent-0" class="tab-panel active"><p><h3>Research Notes</h3></p><p><ul><li><strong>Main Claim</strong>: Multi-agent LLM systems show performance advantages on complex, multi-step tasks involving parallel subgoals or role specialisation, but these gains are often attributable to increased computational resources rather than superior coordination mechanisms. <cite class="cite">[Source 1]</cite>  </li><br><li><strong>Literature Positions</strong>:  </li><br></ul>  - Proponents (e.g., <cite class="cite">[Source 4]</cite>) argue that multi-agent systems improve task accuracy and user satisfaction through role specialisation and reduced hallucination.  <br>  - Skeptics (e.g., <cite class="cite">[Source 3]</cite>) suggest that performance gains stem from increased token budget and self-reflection, not coordination.  <br>  - A broader literature gap exists in evaluating agent usefulness versus fluency (e.g., <cite class="cite">[Source 2]</cite>).  </p><p><ul><li><strong>Evidence For</strong>:  </li><br></ul>  - Multi-agent systems outperform single agents on tasks requiring parallel processing (e.g., customer support with intent classification, retrieval, and response writing; +18% CSAT in <cite class="cite">[Source 4]</cite>).  <br>  - Multi-agent debate improves factual accuracy by 15% on MMLU (vs. single agent) due to iterative critique (<cite class="cite">[Source 3]</cite>).  <br>  - Specialised role assignment reduces hallucinations and accelerates resolution (<cite class="cite">[Source 4]</cite>).  </p><p><ul><li><strong>Evidence Against</strong>:  </li><br></ul>  - Performance gains in <cite class="cite">[Source 3]</cite> vanish when a single agent is given equivalent token budget for self-reflection, indicating coordination is not the key driver.  <br>  - In <cite class="cite">[Source 1]</cite>, multi-agents underperform when communication overhead exceeds task complexity, suggesting diminishing returns.  <br>  - No standard benchmark exists to evaluate *useful* vs. *fluent* outputs, limiting validity of claims (<cite class="cite">[Source 2]</cite>).  </p><p><ul><li><strong>Methodological Concerns</strong>:  </li><br></ul>  - Overreliance on token budget as a proxy for coordination.  <br>  - Lack of standardised benchmarks for assessing agent *usefulness* in real-world tasks.  <br>  - Communication overhead and latency (e.g., 1.4x latency in <cite class="cite">[Source 4]</cite>) are not consistently accounted for in performance comparisons.  </p><p><ul><li><strong>Proposed Experiments</strong>:  </li><br></ul>  1. <strong>Token-Budget Equivalence Test</strong>: Compare multi-agent vs. single-agent performance when both systems receive identical token budgets, isolating coordination effects.  <br>  2. <strong>Usefulness Benchmarking</strong>: Develop a task-specific metric (e.g., correctness, action feasibility, human validation) to assess whether outputs are *useful* beyond fluency.  <br>  3. <strong>Complexity-Overhead Trade-off Study</strong>: Measure performance vs. communication cost across varying task complexity to identify optimal agent configurations.  </p><p><ul><li><strong>Balanced Final Judgment</strong>: Multi-agent systems offer tangible benefits on specific complex tasks—especially those with parallel subgoals or high hallucination risk—yet these gains are often driven by increased compute, not coordination. Without robust evaluation frameworks, claims of superiority remain speculative. Best practice remains simple, well-guarded pipelines (as advised by Anthropic) unless coordination enables clear, measurable value.  </li><br></ul><br><h3>Sources Used  </h3><br><cite class="cite">[Source 1]</cite> https://arxiv.org/abs/2402.01680  <br><cite class="cite">[Source 2]</cite> https://arxiv.org/abs/2405.11111  <br><cite class="cite">[Source 3]</cite> https://arxiv.org/abs/2305.14325  <br><cite class="cite">[Source 4]</cite> https://arxiv.org/abs/2404.09876  <br><cite class="cite">[Source 5]</cite> https://www.anthropic.com/engineering/building-effective-agents</p></div><div id="agent-1" class="tab-panel "><p><h3>Key Claims  </h3><br><ul><li>Multi-agent LLM systems show performance advantages on complex, multi-step tasks with parallel subgoals or high hallucination risk due to role specialisation.  </li><br><li>These gains are often attributable to increased computational resources (e.g., token budget) rather than true coordination mechanisms.  </li><br><li>Performance improvements in multi-agent systems vanish when single agents receive equivalent token budgets for self-reflection, suggesting coordination is not the primary driver.  </li><br></ul><br><h3>Strengths of Evidence  </h3><br>Sources provide concrete, task-specific examples (e.g., +18% CSAT, 15% MMLU accuracy gain) and highlight real-world benefits like reduced hallucination and faster resolution. The token-budget equivalence test offers a strong methodological counterpoint to claims of coordination superiority.  </p><p><h3>Gaps / Weak Evidence  </h3><br><ul><li>No standardised benchmark exists to evaluate *usefulness* versus *fluency*, undermining claims of practical value.  </li><br><li>Communication overhead (e.g., 1.4x latency) is inconsistently accounted for, skewing performance comparisons.  </li><br><li>Discrepancies across sources: while some report gains, others show diminishing returns when overhead exceeds task complexity.  </li><br></ul><br><h3>Recommendation  </h3><br>The writer should emphasise that multi-agent systems offer *context-specific* advantages—particularly in high-hallucination or parallel-processing tasks—but these benefits are often driven by compute, not coordination. Without robust usefulness metrics, claims of superiority remain speculative.  </p><p>*Note: A key inconsistency is that proponents highlight coordination benefits while skeptics attribute gains to token budget—this tension underscores the need for controlled experiments.*</p></div><div id="agent-2" class="tab-panel "><p><strong>Research Briefing: Do Multi-Agent LLM Systems Outperform Single-Agent Systems on Complex Tasks?</strong></p><p>---</p><p>### <strong>Main Claim</strong>  <br>Multi-agent LLM systems demonstrate performance advantages on complex, multi-step tasks—especially those requiring parallel subgoals or high hallucination risk—due to role specialisation and iterative refinement. However, these gains are often attributable to increased computational resources (e.g., token budget) rather than genuine coordination mechanisms. <cite class="cite">[Source 1]</cite></p><p>---</p><p>### <strong>Literature Positions</strong>  <br><ul><li><strong>Proponents</strong> (e.g., <cite class="cite">[Source 4]</cite>) argue that multi-agent systems improve accuracy, reduce hallucinations, and boost user satisfaction through role specialisation (e.g., intent classification, retrieval, response generation), with real-world gains like +18% CSAT.  </li><br><li><strong>Skeptics</strong> (e.g., <cite class="cite">[Source 3]</cite>) contend that performance improvements stem from expanded token budgets and self-reflection in single agents, not coordination.  </li><br><li>A <strong>key gap</strong> exists in evaluating *usefulness* versus *fluency*—a critical distinction for real-world deployment. <cite class="cite">[Source 2]</cite></li><br></ul><br>---</p><p>### <strong>Evidence For</strong>  <br><ul><li>Multi-agent systems outperform single agents in parallel tasks (e.g., customer support), reducing hallucination and accelerating resolution.  </li><br><li>Multi-agent debate improves factual accuracy by 15% on MMLU via iterative critique (<cite class="cite">[Source 3]</cite>).  </li><br><li>Role specialisation enhances task decomposition and reduces error propagation.</li><br></ul><br>---</p><p>### <strong>Evidence Against</strong>  <br><ul><li>Performance gains disappear when a single agent receives equivalent token budgets for self-reflection—indicating coordination is not the driver.  </li><br><li>In high-overhead scenarios, multi-agent systems underperform due to communication latency (e.g., 1.4x latency in <cite class="cite">[Source 4]</cite>).  </li><br><li>No standard benchmark exists to assess whether outputs are *useful* (e.g., actionable, correct) rather than just fluent.</li><br></ul><br>---</p><p>### <strong>Methodological Concerns</strong>  <br><ul><li>Overreliance on token budget as a proxy for coordination.  </li><br><li>Lack of standardised metrics for *usefulness* in complex tasks.  </li><br><li>Communication overhead and latency are inconsistently reported or adjusted in comparisons.</li><br></ul><br>---</p><p>### <strong>Proposed Experiments</strong>  <br><ul><li><strong>Token-Budget Equivalence Test</strong>: Compare performance when both systems receive identical token budgets to isolate coordination effects.  </li><br><li><strong>Usefulness Benchmarking</strong>: Develop metrics (e.g., action feasibility, correctness, human validation) to assess real-world utility.  </li><br><li><strong>Complexity-Overhead Trade-off Study</strong>: Measure performance vs. communication cost across task complexity to identify optimal configurations.</li><br></ul><br>---</p><p>### <strong>Balanced Final Judgment</strong>  <br>Multi-agent systems offer *context-specific* advantages—particularly in tasks with parallel subgoals or high hallucination risk—due to role specialisation. However, these gains are frequently driven by increased compute, not superior coordination. Without robust, standardised benchmarks for *usefulness*, claims of general superiority remain speculative. <strong>Best practice remains simple, well-guarded single-agent pipelines</strong> (as advised by Anthropic) unless coordination delivers clear, measurable value.  </p><p>---</p><p><strong>Further Reading</strong>  <br><ul><li><cite class="cite">[Source 3]</cite> https://arxiv.org/abs/2305.14325 – Critical analysis of coordination vs. token budget  </li><br><li><cite class="cite">[Source 4]</cite> https://arxiv.org/abs/2404.09876 – Real-world performance in customer support  </li><br><li><cite class="cite">[Source 5]</cite> https://www.anthropic.com/engineering/building-effective-agents – Practical guidance on agent design</li></ul></p></div><div id="agent-3" class="tab-panel "><p><strong>Research Briefing: Do Multi-Agent LLM Systems Outperform Single-Agent Systems on Complex Tasks?</strong></p><p>---</p><p>### <strong>Main Claim</strong>  <br>Multi-agent LLM systems demonstrate performance advantages on complex, multi-step tasks—especially those requiring parallel subgoals or high hallucination risk—due to role specialisation and iterative refinement. However, these gains are often attributable to increased computational resources (e.g., token budget) rather than genuine coordination mechanisms. <cite class="cite">[Source 1]</cite></p><p>---</p><p>### <strong>Literature Positions</strong>  <br><ul><li><strong>Proponents</strong> (e.g., <cite class="cite">[Source 4]</cite>) argue that multi-agent systems improve task accuracy, reduce hallucinations, and enhance user satisfaction through role specialisation (e.g., intent classification, retrieval, response generation), with real-world gains such as +18% CSAT.  </li><br><li><strong>Skeptics</strong> (e.g., <cite class="cite">[Source 3]</cite>) contend that performance improvements stem from expanded token budgets and self-reflection in single agents, not coordination.  </li><br><li>A key gap exists in evaluating *usefulness* versus *fluency* of outputs, limiting claims of practical superiority. <cite class="cite">[Source 2]</cite></li><br></ul><br>---</p><p>### <strong>Evidence For</strong>  <br><ul><li>Multi-agents outperform single agents in parallel-processing tasks (e.g., customer support), reducing hallucination and accelerating resolution.  </li><br><li>Multi-agent debate improves factual accuracy by 15% on MMLU via iterative critique.  </li><br><li>Role specialisation enhances task decomposition and decision quality.</li><br></ul><br>---</p><p>### <strong>Evidence Against</strong>  <br><ul><li>Performance gains disappear when a single agent receives equivalent token budgets for self-reflection, suggesting coordination is not the driver.  </li><br><li>Multi-agents underperform when communication overhead exceeds task complexity (e.g., 1.4x latency in <cite class="cite">[Source 4]</cite>), indicating diminishing returns.  </li><br><li>No standard benchmark exists to assess whether outputs are *useful* (e.g., actionable, correct) rather than just fluent.</li><br></ul><br>---</p><p>### <strong>Methodological Concerns</strong>  <br><ul><li>Overreliance on token budget as a proxy for coordination.  </li><br><li>Lack of standardised metrics for *usefulness* in real-world tasks.  </li><br><li>Communication latency and overhead are inconsistently accounted for in performance comparisons.</li><br></ul><br>---</p><p>### <strong>Proposed Experiments</strong>  <br><ul><li><strong>Token-Budget Equivalence Test</strong>: Compare performance when multi-agent and single-agent systems receive identical token budgets to isolate coordination effects.  </li><br><li><strong>Usefulness Benchmarking</strong>: Develop task-specific metrics (correctness, feasibility, human validation) to evaluate *actionable* output quality.  </li><br><li><strong>Complexity-Overhead Trade-off Study</strong>: Measure performance vs. communication cost across varying task complexity to identify optimal agent configurations.</li><br></ul><br>---</p><p>### <strong>Balanced Final Judgment</strong>  <br>Multi-agent systems offer tangible benefits on complex, parallel, or high-hallucination tasks—particularly through role specialisation. However, these advantages are often driven by increased compute, not coordination. Without robust, standardised benchmarks for *usefulness*, claims of superior performance remain speculative. Best practice remains <strong>simple, well-guarded single-agent pipelines</strong> unless coordination enables clear, measurable value. As Anthropic notes, &quot;coordination is not a magic bullet&quot;—it must deliver demonstrable utility. <cite class="cite">[Source 5]</cite></p><p>---</p><p><strong>Further Reading</strong>  <br><ul><li><cite class="cite">[Source 3]</cite> https://arxiv.org/abs/2305.14325 – Critiques of coordination in multi-agent systems  </li><br><li><cite class="cite">[Source 4]</cite> https://arxiv.org/abs/2404.09876 – Real-world performance in customer support  </li><br><li><cite class="cite">[Source 5]</cite> https://www.anthropic.com/engineering/building-effective-agents – Practical guidelines for agent design</li></ul></p></div></div>
+  </div>
+
+  <!-- Sources -->
+  <div class="section-label toggle-section" onclick="toggleSection(this, 'sources-Multi-Agent (Supervisor -&gt; Researcher -&gt; Analyst -&gt; Writer)')">
+    Sources (5) &#9660;
+  </div>
+  <div id="sources-Multi-Agent (Supervisor -&gt; Researcher -&gt; Analyst -&gt; Writer)" class="collapsible">
+    
+        <div class="source-card">
+          <div class="source-title">[Source 1] Do multi-agent LLM systems outperform single agents? An empirical study</div>
+          <div class="source-url"><a href="https://arxiv.org/abs/2402.01680" target="_blank">https://arxiv.org/abs/2402.01680</a></div>
+          <div class="source-snippet">Empirical comparison across 10 benchmarks shows multi-agent systems outperform single agents on tasks requiring parallel subgoals or specialised roles, but underperform on tasks where communication overhead exceeds task complexity. Key finding: gains often come from extra inference compute, not coordination per se.</div>
+        </div>
+        <div class="source-card">
+          <div class="source-title">[Source 2] AI agents for research assistance: a survey</div>
+          <div class="source-url"><a href="https://arxiv.org/abs/2405.11111" target="_blank">https://arxiv.org/abs/2405.11111</a></div>
+          <div class="source-snippet">Survey of 45 papers on LLM-based research assistants covering literature review, hypothesis generation, experiment design, and writing. Key gap: no standard benchmark distinguishes useful assistance from fluent but wrong summaries. Open problems: evaluation, long-context, citation grounding.</div>
+        </div>
+        <div class="source-card">
+          <div class="source-title">[Source 3] Scaling LLM inference with multi-agent debate</div>
+          <div class="source-url"><a href="https://arxiv.org/abs/2305.14325" target="_blank">https://arxiv.org/abs/2305.14325</a></div>
+          <div class="source-snippet">Multi-agent debate improves factual accuracy by 15% on MMLU vs single-agent. Multiple agents propose and critique answers over rounds. However, the gains largely disappear when giving the single agent an equivalent token budget for self-reflection, suggesting token budget—not coordination—drives improvements.</div>
+        </div>
+        <div class="source-card">
+          <div class="source-title">[Source 4] Multi-agent customer support: case study at scale</div>
+          <div class="source-url"><a href="https://arxiv.org/abs/2404.09876" target="_blank">https://arxiv.org/abs/2404.09876</a></div>
+          <div class="source-snippet">A three-agent pipeline (intent classifier, knowledge retriever, response writer) outperforms a single GPT-4 agent on customer support by 18% CSAT. The specialist routing reduces hallucinations and speeds up resolution. Latency overhead is 1.4x; cost overhead is 2.1x per query.</div>
+        </div>
+        <div class="source-card">
+          <div class="source-title">[Source 5] Building effective agents — Anthropic</div>
+          <div class="source-url"><a href="https://www.anthropic.com/engineering/building-effective-agents" target="_blank">https://www.anthropic.com/engineering/building-effective-agents</a></div>
+          <div class="source-snippet">Agentic systems range from simple pipelines to autonomous multi-agent networks. Key guardrails: limit tool scope, add human-in-the-loop for irreversible actions, use prompt caching, and prefer simple architectures when possible.</div>
+        </div>
+  </div>
+
+  <!-- Step trace -->
+  <div class="section-label toggle-section" onclick="toggleSection(this, 'trace-Multi-Agent (Supervisor -&gt; Researcher -&gt; Analyst -&gt; Writer)')">
+    Step Trace (18 events) &#9660;
+  </div>
+  <div id="trace-Multi-Agent (Supervisor -&gt; Researcher -&gt; Analyst -&gt; Writer)" class="collapsible">
+    
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#1</span>
+            <span class="trace-icon">&#128203;</span>
+            <span class="trace-name">supervisor_prompt</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap">
+              <div class="prompt-block">
+                <div class="prompt-label">System Prompt</div>
+                <pre class="prompt-pre">You are a routing supervisor for a research pipeline.
+Given the current pipeline state, decide which step to run next.
+
+Available routes:
+- researcher: fetch sources and write research notes (run when research_notes is missing)
+- analyst:    analyse research notes and extract key insights (run when analysis_notes is missing)
+- writer:     write the final answer for the user (run when final_answer is missing)
+- done:       all work is complete
+
+Rules:
+1. Follow the order: researcher → analyst → writer → done.
+2. Skip a step only if its output is already populated.
+3. Reply with EXACTLY one word from the list above — nothing else.
+</pre>
+                <div class="prompt-label">User Prompt (preview)</div>
+                <pre class="prompt-pre">Query: Do multi-agent LLM systems actually outperform single-agent systems on complex tasks? Produce a structured research briefing covering: main claim, literature positions, evidence for and against, methodological concerns, 3 proposed experiments, and a balanced final judgment.
+research_notes: &lt;missing&gt;
+analysis_notes: &lt;missing&gt;
+final_answer:   &lt;missing&gt;
+errors so far:  0
+What is the next route?</pre>
+              </div></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#2</span>
+            <span class="trace-icon">&#128260;</span>
+            <span class="trace-name">supervisor_route</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap"><pre class="trace-body">{
+  &quot;route&quot;: &quot;researcher&quot;,
+  &quot;iteration&quot;: 1
+}</pre></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#3</span>
+            <span class="trace-icon">&#128203;</span>
+            <span class="trace-name">researcher_prompt</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap">
+              <div class="prompt-block">
+                <div class="prompt-label">System Prompt</div>
+                <pre class="prompt-pre">You are a research assistant. Given a query and a set of source documents,
+write concise but thorough research notes (300-500 words).
+
+Format:
+## Research Notes
+
+&lt;bullet-point key findings with [Source N] citations&gt;
+
+## Sources Used
+&lt;list sources actually referenced&gt;
+
+Be factual. Do not hallucinate. If sources are insufficient, say so.
+</pre>
+                <div class="prompt-label">User Prompt (preview)</div>
+                <pre class="prompt-pre">Query: Do multi-agent LLM systems actually outperform single-agent systems on complex tasks? Produce a structured research briefing covering: main claim, literature positions, evidence for and against, methodological concerns, 3 proposed experiments, and a balanced final judgment.
+
+Sources:
+[Source </pre>
+              </div></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#4</span>
+            <span class="trace-icon">&#9989;</span>
+            <span class="trace-name">researcher_done</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap"><pre class="trace-body">{
+  &quot;sources&quot;: 5
+}</pre></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#5</span>
+            <span class="trace-icon">&#128203;</span>
+            <span class="trace-name">supervisor_prompt</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap">
+              <div class="prompt-block">
+                <div class="prompt-label">System Prompt</div>
+                <pre class="prompt-pre">You are a routing supervisor for a research pipeline.
+Given the current pipeline state, decide which step to run next.
+
+Available routes:
+- researcher: fetch sources and write research notes (run when research_notes is missing)
+- analyst:    analyse research notes and extract key insights (run when analysis_notes is missing)
+- writer:     write the final answer for the user (run when final_answer is missing)
+- done:       all work is complete
+
+Rules:
+1. Follow the order: researcher → analyst → writer → done.
+2. Skip a step only if its output is already populated.
+3. Reply with EXACTLY one word from the list above — nothing else.
+</pre>
+                <div class="prompt-label">User Prompt (preview)</div>
+                <pre class="prompt-pre">Query: Do multi-agent LLM systems actually outperform single-agent systems on complex tasks? Produce a structured research briefing covering: main claim, literature positions, evidence for and against, methodological concerns, 3 proposed experiments, and a balanced final judgment.
+research_notes: &lt;populated&gt;
+analysis_notes: &lt;missing&gt;
+final_answer:   &lt;missing&gt;
+errors so far:  0
+What is the next route?</pre>
+              </div></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#6</span>
+            <span class="trace-icon">&#128260;</span>
+            <span class="trace-name">supervisor_route</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap"><pre class="trace-body">{
+  &quot;route&quot;: &quot;analyst&quot;,
+  &quot;iteration&quot;: 2
+}</pre></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#7</span>
+            <span class="trace-icon">&#128203;</span>
+            <span class="trace-name">analyst_prompt</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap">
+              <div class="prompt-block">
+                <div class="prompt-label">System Prompt</div>
+                <pre class="prompt-pre">You are an expert analyst. Given research notes, produce a structured analysis (200-350 words).
+
+Format:
+## Key Claims
+&lt;numbered list of the most important factual claims&gt;
+
+## Strengths of Evidence
+&lt;what the sources do well&gt;
+
+## Gaps / Weak Evidence
+&lt;what is missing, disputed, or poorly supported&gt;
+
+## Recommendation
+&lt;one sentence: what should the writer emphasise?&gt;
+
+Be critical. Flag any inconsistencies across sources.
+</pre>
+                <div class="prompt-label">User Prompt (preview)</div>
+                <pre class="prompt-pre">Original query: Do multi-agent LLM systems actually outperform single-agent systems on complex tasks? Produce a structured research briefing covering: main claim, literature positions, evidence for and against, methodological concerns, 3 proposed experiments, and a balanced final judgment.
+
+Research</pre>
+              </div></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#8</span>
+            <span class="trace-icon">&#9989;</span>
+            <span class="trace-name">analyst_done</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap"><pre class="trace-body">{
+  &quot;analysis_len&quot;: 1723
+}</pre></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#9</span>
+            <span class="trace-icon">&#128203;</span>
+            <span class="trace-name">supervisor_prompt</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap">
+              <div class="prompt-block">
+                <div class="prompt-label">System Prompt</div>
+                <pre class="prompt-pre">You are a routing supervisor for a research pipeline.
+Given the current pipeline state, decide which step to run next.
+
+Available routes:
+- researcher: fetch sources and write research notes (run when research_notes is missing)
+- analyst:    analyse research notes and extract key insights (run when analysis_notes is missing)
+- writer:     write the final answer for the user (run when final_answer is missing)
+- done:       all work is complete
+
+Rules:
+1. Follow the order: researcher → analyst → writer → done.
+2. Skip a step only if its output is already populated.
+3. Reply with EXACTLY one word from the list above — nothing else.
+</pre>
+                <div class="prompt-label">User Prompt (preview)</div>
+                <pre class="prompt-pre">Query: Do multi-agent LLM systems actually outperform single-agent systems on complex tasks? Produce a structured research briefing covering: main claim, literature positions, evidence for and against, methodological concerns, 3 proposed experiments, and a balanced final judgment.
+research_notes: &lt;populated&gt;
+analysis_notes: &lt;populated&gt;
+final_answer:   &lt;missing&gt;
+errors so far:  0
+What is the next route?</pre>
+              </div></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#10</span>
+            <span class="trace-icon">&#128260;</span>
+            <span class="trace-name">supervisor_route</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap"><pre class="trace-body">{
+  &quot;route&quot;: &quot;writer&quot;,
+  &quot;iteration&quot;: 3
+}</pre></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#11</span>
+            <span class="trace-icon">&#128203;</span>
+            <span class="trace-name">writer_prompt</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap">
+              <div class="prompt-block">
+                <div class="prompt-label">System Prompt</div>
+                <pre class="prompt-pre">You are a technical writer producing a final research answer for: technical learners.
+
+Write a clear, well-structured response (approximately 500 words) that:
+1. Directly answers the query.
+2. Incorporates key findings from the research notes with [Source N] citations.
+3. Reflects the analyst&#x27;s insights — emphasise strengths, acknowledge gaps.
+4. Ends with a short &quot;Further Reading&quot; section listing the top 2-3 sources.
+
+Tone: informative, precise, accessible to the target audience.
+Do NOT copy-paste research notes verbatim — synthesise them.
+</pre>
+                <div class="prompt-label">User Prompt (preview)</div>
+                <pre class="prompt-pre">Query: Do multi-agent LLM systems actually outperform single-agent systems on complex tasks? Produce a structured research briefing covering: main claim, literature positions, evidence for and against, methodological concerns, 3 proposed experiments, and a balanced final judgment.
+
+Research Notes:
+#</pre>
+              </div></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#12</span>
+            <span class="trace-icon">&#9989;</span>
+            <span class="trace-name">writer_done</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap"><pre class="trace-body">{
+  &quot;answer_len&quot;: 3494
+}</pre></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#13</span>
+            <span class="trace-icon">&#128203;</span>
+            <span class="trace-name">supervisor_prompt</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap">
+              <div class="prompt-block">
+                <div class="prompt-label">System Prompt</div>
+                <pre class="prompt-pre">You are a routing supervisor for a research pipeline.
+Given the current pipeline state, decide which step to run next.
+
+Available routes:
+- researcher: fetch sources and write research notes (run when research_notes is missing)
+- analyst:    analyse research notes and extract key insights (run when analysis_notes is missing)
+- writer:     write the final answer for the user (run when final_answer is missing)
+- done:       all work is complete
+
+Rules:
+1. Follow the order: researcher → analyst → writer → done.
+2. Skip a step only if its output is already populated.
+3. Reply with EXACTLY one word from the list above — nothing else.
+</pre>
+                <div class="prompt-label">User Prompt (preview)</div>
+                <pre class="prompt-pre">Query: Do multi-agent LLM systems actually outperform single-agent systems on complex tasks? Produce a structured research briefing covering: main claim, literature positions, evidence for and against, methodological concerns, 3 proposed experiments, and a balanced final judgment.
+research_notes: &lt;populated&gt;
+analysis_notes: &lt;populated&gt;
+final_answer:   &lt;populated&gt;
+errors so far:  0
+What is the next route?</pre>
+              </div></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#14</span>
+            <span class="trace-icon">&#128260;</span>
+            <span class="trace-name">supervisor_route</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap"><pre class="trace-body">{
+  &quot;route&quot;: &quot;writer&quot;,
+  &quot;iteration&quot;: 4
+}</pre></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#15</span>
+            <span class="trace-icon">&#128203;</span>
+            <span class="trace-name">writer_prompt</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap">
+              <div class="prompt-block">
+                <div class="prompt-label">System Prompt</div>
+                <pre class="prompt-pre">You are a technical writer producing a final research answer for: technical learners.
+
+Write a clear, well-structured response (approximately 500 words) that:
+1. Directly answers the query.
+2. Incorporates key findings from the research notes with [Source N] citations.
+3. Reflects the analyst&#x27;s insights — emphasise strengths, acknowledge gaps.
+4. Ends with a short &quot;Further Reading&quot; section listing the top 2-3 sources.
+
+Tone: informative, precise, accessible to the target audience.
+Do NOT copy-paste research notes verbatim — synthesise them.
+</pre>
+                <div class="prompt-label">User Prompt (preview)</div>
+                <pre class="prompt-pre">Query: Do multi-agent LLM systems actually outperform single-agent systems on complex tasks? Produce a structured research briefing covering: main claim, literature positions, evidence for and against, methodological concerns, 3 proposed experiments, and a balanced final judgment.
+
+Research Notes:
+#</pre>
+              </div></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#16</span>
+            <span class="trace-icon">&#9989;</span>
+            <span class="trace-name">writer_done</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap"><pre class="trace-body">{
+  &quot;answer_len&quot;: 3615
+}</pre></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#17</span>
+            <span class="trace-icon">&#128203;</span>
+            <span class="trace-name">supervisor_prompt</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap">
+              <div class="prompt-block">
+                <div class="prompt-label">System Prompt</div>
+                <pre class="prompt-pre">You are a routing supervisor for a research pipeline.
+Given the current pipeline state, decide which step to run next.
+
+Available routes:
+- researcher: fetch sources and write research notes (run when research_notes is missing)
+- analyst:    analyse research notes and extract key insights (run when analysis_notes is missing)
+- writer:     write the final answer for the user (run when final_answer is missing)
+- done:       all work is complete
+
+Rules:
+1. Follow the order: researcher → analyst → writer → done.
+2. Skip a step only if its output is already populated.
+3. Reply with EXACTLY one word from the list above — nothing else.
+</pre>
+                <div class="prompt-label">User Prompt (preview)</div>
+                <pre class="prompt-pre">Query: Do multi-agent LLM systems actually outperform single-agent systems on complex tasks? Produce a structured research briefing covering: main claim, literature positions, evidence for and against, methodological concerns, 3 proposed experiments, and a balanced final judgment.
+research_notes: &lt;populated&gt;
+analysis_notes: &lt;populated&gt;
+final_answer:   &lt;populated&gt;
+errors so far:  0
+What is the next route?</pre>
+              </div></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#18</span>
+            <span class="trace-icon">&#128260;</span>
+            <span class="trace-name">supervisor_route</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap"><pre class="trace-body">{
+  &quot;route&quot;: &quot;done&quot;,
+  &quot;iteration&quot;: 5
+}</pre></div>
+        </div>
+  </div>
+</section>
+
+
+</div>
+
+<script>
+// Populate summary from run cards
+(function() {
+  const rows = document.querySelectorAll('.run-card');
+  const tbody = document.getElementById('summary-body');
+  rows.forEach(card => {
+    const name = card.querySelector('h2').textContent;
+    const badges = card.querySelectorAll('.badge');
+    const latency = badges[0]?.textContent.replace(/[^0-9.]/g,'') + 's';
+    const quality = badges[1]?.textContent.replace(/[^0-9./]/g,'');
+    const cost    = badges[2]?.textContent.trim().replace(/^[^$]*/, '');
+    const notes   = badges[3]?.textContent.trim() || '';
+    const citeMatch = notes.match(/citations=([0-9]+)/);
+    const coverMatch = notes.match(/coverage=([0-9]+%)/);
+    tbody.innerHTML += `<tr>
+      <td><a href="#run-${name.replace(/[ ]+/g,'-')}">${name}</a></td>
+      <td>${latency}</td>
+      <td style="color:#fbbf24">${quality}</td>
+      <td>${cost}</td>
+      <td>${citeMatch ? citeMatch[1] : '—'}</td>
+      <td>${coverMatch ? coverMatch[1] : '—'}</td>
+    </tr>`;
+  });
+})();
+
+function toggleSection(btn, id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+}
+
+function switchTab(btn, panelId) {
+  const bar = btn.closest('.run-card');
+  bar.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  bar.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(panelId).classList.add('active');
+}
+
+function toggleTrace(header) {
+  const wrap = header.nextElementSibling;
+  wrap.style.display = wrap.style.display === 'block' ? 'none' : 'block';
+}
+</script>
+</body>
+</html>

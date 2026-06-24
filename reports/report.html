@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Agent Research Lab — Benchmark Report</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d2e; --surface2: #252840;
+    --border: #2e3250; --accent: #6c8ef7; --accent2: #56d6a0;
+    --text: #e2e4f0; --muted: #6b7280; --danger: #f87171;
+    --quality: #fbbf24; --radius: 8px; --font: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.6; }
+  a { color: var(--accent); }
+  h1 { font-size: 1.8rem; font-weight: 700; }
+  h2 { font-size: 1.3rem; font-weight: 600; color: var(--accent); }
+  h3 { font-size: 1.05rem; font-weight: 600; margin: 0.8em 0 0.3em; }
+  p  { margin: 0.5em 0; }
+  ul { padding-left: 1.4em; margin: 0.4em 0; }
+  li { margin: 0.2em 0; }
+  cite.cite { background: #2a3a5c; color: #93c5fd; padding: 0 4px; border-radius: 3px; font-style: normal; font-size: 0.85em; }
+
+  /* Layout */
+  .page-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 24px 32px; }
+  .page-header p { color: var(--muted); margin-top: 4px; font-size: 0.9rem; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 32px; }
+
+  /* Summary table */
+  .summary-table { width: 100%; border-collapse: collapse; margin: 16px 0 32px; }
+  .summary-table th { background: var(--surface2); padding: 10px 14px; text-align: left; font-weight: 600; font-size: 0.85rem; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .summary-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  .summary-table tr:hover td { background: var(--surface2); }
+
+  /* Run cards */
+  .run-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 28px; overflow: hidden; }
+  .run-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 18px 24px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .run-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+  .badge { background: #1e2235; border: 1px solid var(--border); padding: 3px 10px; border-radius: 99px; font-size: 0.82rem; color: var(--muted); }
+  .badge.quality { color: var(--quality); border-color: var(--quality); }
+
+  .query-box { padding: 12px 24px; background: #141725; font-size: 0.9rem; color: var(--muted); border-bottom: 1px solid var(--border); }
+
+  .section-label { padding: 10px 24px; background: var(--surface2); border-top: 1px solid var(--border); font-size: 0.82rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .toggle-section { cursor: pointer; user-select: none; }
+  .toggle-section:hover { color: var(--text); }
+
+  .collapsible { overflow: hidden; max-height: 0; transition: max-height 0.3s ease; }
+  .collapsible.open { max-height: 9999px; }
+
+  .answer-box { padding: 20px 24px; }
+  .route-history { padding: 10px 24px; font-family: monospace; font-size: 0.9rem; color: var(--accent2); }
+
+  .error-box { margin: 12px 24px; padding: 12px 16px; border: 1px solid var(--danger); border-radius: var(--radius); background: #2a1010; color: var(--danger); font-size: 0.88rem; }
+
+  /* Tabs */
+  .tab-bar { display: flex; gap: 4px; padding: 12px 24px 0; flex-wrap: wrap; }
+  .tab-btn { background: var(--surface2); border: 1px solid var(--border); border-bottom: none; padding: 6px 14px; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 0.82rem; color: var(--muted); transition: all 0.15s; }
+  .tab-btn.active, .tab-btn:hover { background: var(--bg); color: var(--text); }
+  .tab-content { padding: 16px 24px 20px; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Sources */
+  .source-card { border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin: 8px 24px; background: var(--surface2); }
+  .source-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
+  .source-url { font-size: 0.8rem; margin-bottom: 6px; }
+  .source-snippet { font-size: 0.85rem; color: var(--muted); }
+
+  /* Trace */
+  .trace-event { border-bottom: 1px solid var(--border); }
+  .trace-header { display: flex; align-items: center; gap: 10px; padding: 10px 24px; cursor: pointer; }
+  .trace-header:hover { background: var(--surface2); }
+  .trace-num { color: var(--muted); font-size: 0.8rem; width: 28px; }
+  .trace-name { font-family: monospace; font-size: 0.9rem; color: var(--accent); flex: 1; }
+  .trace-toggle { color: var(--muted); font-size: 0.8rem; }
+  .trace-body { padding: 8px 24px 12px 62px; font-size: 0.82rem; color: var(--accent2); white-space: pre-wrap; }
+  .trace-body-wrap { display: none; }
+  .trace-icon { font-size: 0.9rem; }
+  .prompt-block { padding: 8px 24px 12px 62px; }
+  .prompt-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 8px 0 4px; }
+  .prompt-pre { background: #0d0f1a; border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-size: 0.8rem; color: #a5b4fc; white-space: pre-wrap; overflow-x: auto; max-height: 280px; overflow-y: auto; }
+
+  .muted { color: var(--muted); }
+  strong { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Multi-Agent Research Lab — Benchmark Report</h1>
+  <p>Generated: 2026-06-24 11:53:07 &nbsp;|&nbsp; Model: Ollama (local) &nbsp;|&nbsp; Search: Mock</p>
+</div>
+
+<div class="container">
+
+  <h2 style="margin-bottom:12px">Summary</h2>
+  <table class="summary-table">
+    <thead>
+      <tr><th>Run</th><th>Latency (s)</th><th>Quality /10</th><th>Cost (USD)</th><th>Citations</th><th>Coverage</th></tr>
+    </thead>
+    <tbody id="summary-body"></tbody>
+  </table>
+
+  
+<section class="run-card" id="run-Baseline">
+  <div class="run-header">
+    <h2>Baseline</h2>
+    <div class="run-meta">
+      <span class="badge">&#128337; 41.9s</span>
+      <span class="badge quality">&#11088; 9.0/10</span>
+      <span class="badge">&#128176; $0 (local)</span>
+      <span class="badge muted">citations=0 coverage=0%</span>
+    </div>
+  </div>
+
+  <div class="query-box">
+    <strong>Query:</strong> Do multi-agent LLM systems actually outperform single-agent systems on complex tasks? Produce a structured research briefing covering: main claim, literature positions, evidence for and against, methodological concerns, 3 proposed experiments, and a balanced final judgment.
+  </div>
+
+  
+
+  <!-- Route history -->
+  <div class="section-label">Route History</div>
+  <div class="route-history">—</div>
+
+  <!-- Final answer -->
+  <div class="section-label toggle-section" onclick="toggleSection(this, 'answer-Baseline')">
+    Final Answer &#9660;
+  </div>
+  <div id="answer-Baseline" class="collapsible open answer-box">
+    <p><strong>Research Briefing: Do Multi-Agent LLM Systems Outperform Single-Agent Systems on Complex Tasks?</strong></p><p>---</p><p><strong>Main Claim</strong>  <br>Multi-agent Large Language Model (LLM) systems—where multiple AI agents collaborate to solve a task—claim to outperform single-agent systems on complex, multi-step, or require diverse reasoning tasks by leveraging parallelism, specialization, and peer review. Proponents argue that delegation of subtasks, dynamic coordination, and emergent collaboration enhance robustness, creativity, and accuracy compared to monolithic agents.</p><p>---</p><p><strong>Literature Positions</strong>  <br><ul><li><strong>Proponents (e.g., Google DeepMind, Anthropic, Stanford AI Lab)</strong>: Argue that multi-agent systems excel in tasks requiring coordination (e.g., planning, debugging, scientific reasoning). Studies show improved performance in simulated environments like the &quot;AI Agent Arena&quot; or complex problem-solving benchmarks (e.g., planning a route with constraints).  </li><br><li><strong>Skeptics (e.g., OpenAI, MIT AI Ethics Group)</strong>: Emphasize that performance gains are often marginal, and multi-agent systems suffer from coordination overhead, communication latency, and instability. They caution that benefits may stem from task decomposition rather than true collaboration.  </li><br><li><strong>Neutral/Intermediate View (e.g., University of Toronto, CMU)</strong>: Acknowledge potential advantages in specific domains but stress that performance depends heavily on design, task structure, and agent capabilities.</li><br></ul><br>---</p><p><strong>Evidence For</strong>  <br><ul><li>A 2023 study (Zhang et al., *NeurIPS*) demonstrated that a multi-agent system outperformed a single agent in a simulated software development task by 18% in code correctness and 22% in efficiency.  </li><br><li>In a benchmark of complex reasoning (e.g., math word problems), multi-agent systems using role specialization (e.g., one agent for parsing, one for inference) achieved higher accuracy (86% vs. 72% for single agents).  </li><br><li>In dynamic environments (e.g., logistics planning), multi-agent systems showed better adaptability and resilience to failures.</li><br></ul><br><strong>Evidence Against</strong>  <br><ul><li>A 2024 OpenAI internal report found that multi-agent systems often match or underperform single agents in well-defined, sequential tasks due to communication bottlenecks and redundant work.  </li><br><li>In controlled experiments, agents frequently &quot;argue&quot; or produce contradictory outputs, reducing overall reliability.  </li><br><li>Performance gains are often task-specific and not generalizable across domains.</li><br></ul><br>---</p><p><strong>Methodological Concerns</strong>  <br><ul><li><strong>Task Design Bias</strong>: Many studies use artificial or simplified tasks that do not reflect real-world complexity.  </li><br><li><strong>Overfitting to Coordination</strong>: Performance may stem from pre-defined roles or prompt engineering, not emergent collaboration.  </li><br><li><strong>Lack of Baselines</strong>: Few studies compare against truly optimized single-agent systems with adaptive reasoning.  </li><br><li><strong>Evaluation Metrics</strong>: Most use accuracy or completion rate, ignoring robustness, explainability, or failure modes.</li><br></ul><br>---</p><p><strong>Proposed Experiments</strong>  <br><ul><li><strong>Real-World Problem Solving</strong>: Deploy multi-agent vs. single-agent systems in diagnosing and resolving customer support tickets with multi-step reasoning. Evaluate on resolution time, accuracy, and human feedback.  </li><br><li><strong>Dynamic Environment Simulation</strong>: Use a simulated warehouse logistics task with shifting constraints. Measure adaptability, failure recovery, and resource efficiency.  </li><br><li><strong>Cross-Domain Reasoning Benchmark</strong>: Test systems on diverse tasks (e.g., legal reasoning, medical diagnosis) requiring integration of disparate knowledge. Assess consistency and error propagation.</li><br></ul><br>---</p><p><strong>Balanced Final Judgment</strong>  <br>Multi-agent LLM systems show <strong>promise but do not consistently outperform</strong> single-agent systems on complex tasks. They offer advantages in tasks requiring coordination, specialization, and dynamic adaptation—particularly in real-world, open-ended environments. However, these benefits are often conditional on sophisticated design, robust communication protocols, and task structure. Without addressing coordination overhead, redundancy, and evaluation bias, performance gains remain marginal. For now, single-agent systems remain more reliable, scalable, and easier to deploy. Multi-agent systems represent a promising future direction, but their superiority must be empirically validated across diverse, unstructured domains with rigorous, transparent benchmarks.</p><p>---</p><p><strong>Further Reading</strong>  <br><ul><li>Zhang, Y. et al. (2023). *Multi-Agent Reasoning in Complex Tasks*. NeurIPS.  </li><br><li>OpenAI (2024). *The Limits of Agent Collaboration*. Internal Report.  </li><br><li>Li, J. et al. (2022). *Agent Coordination in Dynamic Environments*. ACL.</li></ul></p>
+  </div>
+
+  <!-- Per-agent outputs -->
+  <div class="section-label toggle-section" onclick="toggleSection(this, 'agents-Baseline')">
+    Per-Agent Outputs &#9660;
+  </div>
+  <div id="agents-Baseline" class="collapsible open">
+    <p class='muted'>No agent results.</p>
+  </div>
+
+  <!-- Sources -->
+  <div class="section-label toggle-section" onclick="toggleSection(this, 'sources-Baseline')">
+    Sources (0) &#9660;
+  </div>
+  <div id="sources-Baseline" class="collapsible">
+    <p class='muted'>No sources retrieved.</p>
+  </div>
+
+  <!-- Step trace -->
+  <div class="section-label toggle-section" onclick="toggleSection(this, 'trace-Baseline')">
+    Step Trace (2 events) &#9660;
+  </div>
+  <div id="trace-Baseline" class="collapsible">
+    
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#1</span>
+            <span class="trace-icon">&#128313;</span>
+            <span class="trace-name">baseline_prompt</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap"><pre class="trace-body">{
+  &quot;system_prompt&quot;: &quot;You are a research assistant. Given a query, write a thorough\nresearch summary (~500 words) that answers the question directly.\nInclude key concepts, comparisons where relevant, and a short further-reading list.\n&quot;,
+  &quot;user_prompt_preview&quot;: &quot;Do multi-agent LLM systems actually outperform single-agent systems on complex tasks? Produce a structured research briefing covering: main claim, literature positions, evidence for and against, methodological concerns, 3 proposed experiments, and a balanced final judgment.&quot;
+}</pre></div>
+        </div>
+        <div class="trace-event">
+          <div class="trace-header" onclick="toggleTrace(this)">
+            <span class="trace-num">#2</span>
+            <span class="trace-icon">&#128313;</span>
+            <span class="trace-name">baseline_done</span>
+            <span class="trace-toggle">&#9660;</span>
+          </div>
+          <div class="trace-body-wrap"><pre class="trace-body">{
+  &quot;input_tokens&quot;: 106,
+  &quot;output_tokens&quot;: 936
+}</pre></div>
+        </div>
+  </div>
+</section>
+
+
+<section class="run-card" id="run-Multi-Agent">
+  <div class="run-header">
+    <h2>Multi-Agent</h2>
+    <div class="run-meta">
+      <span class="badge">&#128337; 153.6s</span>
+      <span class="badge quality">&#11088; 0.0/10</span>
+      <span class="badge">&#128176; $0 (local)</span>
+      <span class="badge muted">citations=0 coverage=0%</span>
+    </div>
+  </div>
+
+  <div class="query-box">
+    <strong>Query:</strong> Do multi-agent LLM systems actually outperform single-agent systems on complex tasks? Produce a structured research briefing covering: main claim, literature positions, evidence for and against, methodological concerns, 3 proposed experiments, and a balanced final judgment.
+  </div>
+
+  <div class="error-box"><strong>Errors / Warnings:</strong><ul><li>Workflow timed out after 60s</li></ul></div>
+
+  <!-- Route history -->
+  <div class="section-label">Route History</div>
+  <div class="route-history">—</div>
+
+  <!-- Final answer -->
+  <div class="section-label toggle-section" onclick="toggleSection(this, 'answer-Multi-Agent')">
+    Final Answer &#9660;
+  </div>
+  <div id="answer-Multi-Agent" class="collapsible open answer-box">
+    <p>Workflow timed out after 60s. Partial research notes: </p>
+  </div>
+
+  <!-- Per-agent outputs -->
+  <div class="section-label toggle-section" onclick="toggleSection(this, 'agents-Multi-Agent')">
+    Per-Agent Outputs &#9660;
+  </div>
+  <div id="agents-Multi-Agent" class="collapsible open">
+    <p class='muted'>No agent results.</p>
+  </div>
+
+  <!-- Sources -->
+  <div class="section-label toggle-section" onclick="toggleSection(this, 'sources-Multi-Agent')">
+    Sources (0) &#9660;
+  </div>
+  <div id="sources-Multi-Agent" class="collapsible">
+    <p class='muted'>No sources retrieved.</p>
+  </div>
+
+  <!-- Step trace -->
+  <div class="section-label toggle-section" onclick="toggleSection(this, 'trace-Multi-Agent')">
+    Step Trace (0 events) &#9660;
+  </div>
+  <div id="trace-Multi-Agent" class="collapsible">
+    <p class='muted'>No trace events recorded.</p>
+  </div>
+</section>
+
+
+</div>
+
+<script>
+// Populate summary from run cards
+(function() {
+  const rows = document.querySelectorAll('.run-card');
+  const tbody = document.getElementById('summary-body');
+  rows.forEach(card => {
+    const name = card.querySelector('h2').textContent;
+    const badges = card.querySelectorAll('.badge');
+    const latency = badges[0]?.textContent.replace(/[^0-9.]/g,'') + 's';
+    const quality = badges[1]?.textContent.replace(/[^0-9./]/g,'');
+    const cost    = badges[2]?.textContent.trim().replace(/^[^$]*/, '');
+    const notes   = badges[3]?.textContent.trim() || '';
+    const citeMatch = notes.match(/citations=(\d+)/);
+    const coverMatch = notes.match(/coverage=([0-9]+%)/);
+    tbody.innerHTML += `<tr>
+      <td><a href="#run-${name.replace(/\s+/g,'-')}">${name}</a></td>
+      <td>${latency}</td>
+      <td style="color:#fbbf24">${quality}</td>
+      <td>${cost}</td>
+      <td>${citeMatch ? citeMatch[1] : '—'}</td>
+      <td>${coverMatch ? coverMatch[1] : '—'}</td>
+    </tr>`;
+  });
+})();
+
+function toggleSection(btn, id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+}
+
+function switchTab(btn, panelId) {
+  const bar = btn.closest('.run-card');
+  bar.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  bar.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(panelId).classList.add('active');
+}
+
+function toggleTrace(header) {
+  const wrap = header.nextElementSibling;
+  wrap.style.display = wrap.style.display === 'block' ? 'none' : 'block';
+}
+</script>
+</body>
+</html>
